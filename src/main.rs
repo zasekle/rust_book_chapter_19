@@ -1,7 +1,9 @@
+use std::fmt::{Display, Formatter};
 use std::slice;
 
 fn main() {
     unsafe_rust();
+    advanced_traits();
 }
 
 fn unsafe_rust() {
@@ -73,7 +75,7 @@ fn unsafe_rust() {
         (first, second)
     }
 
-    let mut x = vec![1,2,3,4,5];
+    let mut x = vec![1, 2, 3, 4, 5];
 
     unsafe {
         println!("Unsafe stuff: {:?}", hello(&mut x));
@@ -108,4 +110,168 @@ fn unsafe_rust() {
     // their primary use is to interface with `C` language unions.
 }
 
+fn advanced_traits() {
+    //There are things called associated types. These are similar to generics except that with
+    // associated types the type can only be implemented once. This allows for the type to not
+    // need to be explicitly specified each time.
 
+    trait FooAssociated {
+        type Item;
+
+        fn foo_associated(&mut self) -> Option<Self::Item>;
+    }
+
+    trait FooGeneric<T> {
+        fn foo_generic(&mut self) -> Option<T>;
+    }
+
+    struct BarStruct;
+
+    impl FooAssociated for BarStruct {
+        type Item = u32;
+
+        fn foo_associated(&mut self) -> Option<Self::Item> {
+            Some(3)
+        }
+    }
+
+    //This code will not compile because only a single implementation can exist for an associated
+    // type.
+    // impl FooAssociated for BarStruct {
+    //     type Item = String;
+    //
+    //     fn foo_associated(&mut self) -> Option<Self::Item> {
+    //         Some(String::from("associated"))
+    //     }
+    // }
+
+    impl FooGeneric<u32> for BarStruct {
+        fn foo_generic(&mut self) -> Option<u32> {
+            Some(5)
+        }
+    }
+
+    impl FooGeneric<String> for BarStruct {
+        fn foo_generic(&mut self) -> Option<String> {
+            Some(String::from("generic"))
+        }
+    }
+
+    let mut bar = BarStruct {};
+
+    //Note that the generics are more complex to call. However, if there is only a single
+    // implementation this is not true in this case. It seems to be that there are some benefits
+    // to be had with the compiler and that it can make more guarantees here. The way of calling
+    // the different generics is know as `fully qualified syntax`. It is explored a little bit more
+    // below
+    println!(
+        "associated {:?} generic::u32 {:?} generic::String {:?}",
+        bar.foo_associated(),
+        <BarStruct as FooGeneric<u32>>::foo_generic(&mut bar),
+        <BarStruct as FooGeneric<String>>::foo_generic(&mut bar),
+    );
+
+    //A default type can be set for a parameter.
+    trait Winner<T=u32> {
+        type Output;
+
+        fn win(self, num: T) -> T;
+    }
+
+    struct Check;
+
+    //Notice that a type does not need to be explicitly specified here. Instead, the default type
+    // is used.
+    impl Winner for Check {
+        type Output = ();
+
+        fn win(self, num: u32) -> u32 {
+            num
+        }
+    }
+
+    let check = Check{};
+
+    println!("win {}", check.win(4));
+
+    //Fully qualified syntax can be used when there are conflicting names.
+
+    trait Arm {
+        fn pain(&self) {
+            println!("My arm feels good");
+        }
+    }
+
+    trait Leg {
+        fn pain(&self) {
+            println!("My leg is a little sore");
+        }
+    }
+
+    struct Human;
+
+    impl Arm for Human {}
+
+    impl Leg for Human {}
+
+    impl Human {
+        fn pain(&self) {
+            println!("Overall I feel good");
+        }
+    }
+
+    let human = Human{};
+
+    //The below is fully qualified syntax. By default the Human implementation of pain() is called.
+    // However, if other implementations of pain() are needed, they can also be called using the
+    // below syntax.
+    human.pain();
+    Arm::pain(&human);
+    Leg::pain(&human);
+
+    //Note that fully qualified syntax can be used anywhere. However, Rust can figure out most of
+    // it and so there is no need.
+    <Human as Leg>::pain(&human);
+
+    //Supertraits are traits that are required to implement another trait.
+    trait ShowStuff: Display {
+        fn show_stuff(&self) {
+            println!("running show_stuff() {}", self.to_string());
+        }
+    }
+
+    struct Box{len: i32}
+
+    //Display must be implemented in order to implement the trait ShowStuff.
+    impl Display for Box {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.len)
+        }
+    }
+
+    impl ShowStuff for Box {}
+
+    let my_box = Box{len: 12};
+
+    my_box.show_stuff();
+
+    //There is also something called the `newtype pattern`. The terminology is apparently taken
+    // from Haskell. Essentially there is a rule that restricts from implementing an external trait
+    // on an external type. In order to get around this, a wrapper can be made for the external
+    // type and the trait can be implemented on the wrapped. The example given in the book for this
+    // is listed below. Apparently the compiler will use elision to remove any performance penalty
+    // when this pattern is used.
+    use std::fmt;
+
+    struct Wrapper(Vec<String>);
+
+    impl Display for Wrapper {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "[{}]", self.0.join(", "))
+        }
+    }
+
+    let w = Wrapper(vec![String::from("hello"), String::from("world")]);
+    println!("w = {}", w);
+
+}
