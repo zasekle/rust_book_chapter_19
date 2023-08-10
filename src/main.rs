@@ -1,9 +1,11 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::slice;
 
 fn main() {
     unsafe_rust();
     advanced_traits();
+    advanced_types();
 }
 
 fn unsafe_rust() {
@@ -274,4 +276,45 @@ fn advanced_traits() {
     let w = Wrapper(vec![String::from("hello"), String::from("world")]);
     println!("w = {}", w);
 
+}
+
+fn advanced_types() {
+    //The newtype pattern can also be used to hide implementation details. For example a HashMap
+    // could have a Wrapper that makes the API for it more conceptual.
+
+    //There is something similar to typedef in C++ that can be done to alias types. It seems to
+    // mostly be used to shorten long type names.
+    type Hi = HashMap<Vec<i32>, HashMap<Vec<String>, HashSet<u32>>>;
+
+    let hello: Hi = HashMap::new();
+
+    println!("hello: {:?}", hello);
+
+    //As a fun note, the reason the namespace can be eliminated is because of type aliasing inside
+    // the standard library. For example, type HashMap<T, U> = std::HashMap<T, U>.
+
+    //There is a `never type` that is returned as shown below in foo. This means that a type is
+    // never returned from this. So for example things link `continue` and `panic!` return this
+    // type. This allows for types to be properly be determined inside things like match statements.
+    fn foo() -> ! {
+        panic!("never type");
+    }
+
+    if false { foo(); }
+
+    //Essentially rust stores both the memory address as well as the size of the memory when
+    // handling dynamic memory. This seems to be done for support for slicing. For example, an &str
+    // type does this because the size is unknown until compile time. This is a bit different than
+    // in C or C++, in those languages a reference is simply a pointer. Then either the size is
+    // stored internally to the object or passed separately. Either way it must be handled manually.
+
+    //By nature, a generic type has the follow type automatically put on it by the compiler.
+    fn _generic<T: Sized>(_t: T) {
+        // --snip--
+    }
+
+    //This type can be overridden using the following method.
+    fn _generic_unsized<T: ?Sized>(_t: &T) {
+        // --snip--
+    }
 }
