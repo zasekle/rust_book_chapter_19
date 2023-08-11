@@ -6,6 +6,7 @@ fn main() {
     unsafe_rust();
     advanced_traits();
     advanced_types();
+    advanced_functions_and_closures();
 }
 
 fn unsafe_rust() {
@@ -317,4 +318,48 @@ fn advanced_types() {
     fn _generic_unsized<T: ?Sized>(_t: &T) {
         // --snip--
     }
+}
+
+fn advanced_functions_and_closures() {
+
+    //Function pointers can be passed to a function instead of closures as well.
+    fn closure_add<F>(f: &F) where F: Fn(u32)->u32 {
+         println!("add from closure {}", f(2))
+    }
+
+    //In general this is not a good way to write the function. This is because the closure syntax
+    // above can accept function pointers. However, the function pointer syntax cannot accept
+    // closures. This is because the fn type implements Fn, FnMut and FnOnce.
+    fn function_ptr_add(f: fn (u32) -> u32) {
+        println!("add from function ptr {}", f(3))
+    }
+
+    fn foo(i: u32) -> u32 {
+        i + 1
+    }
+
+    let capture = 1;
+
+    //If the closure does not capture anything, it can be coerced into a function pointer by the
+    // compiler. In order to demonstrate the difference between closures and function pointers
+    // the closure must capture something from the environment.
+    let close = |i: u32| {
+        i + capture
+    };
+
+    closure_add(&close); //Passed a closure.
+    closure_add(&foo); //Passed a function pointer.
+    // function_ptr_add(close); //Passed a closure. Will not compile, read above for more info.
+    function_ptr_add(foo); //Passed a function pointer.
+
+    //Closures can also be returned. However, they must be wrapped in a smart pointer. Otherwise,
+    // the compiler will not know what the correct size for them is. The below code is directly
+    // from the Rust book.
+    fn returns_closure() -> Box<dyn Fn(i32) -> i32> {
+        Box::new(|x| x + 1)
+    }
+
+    let returned_value = returns_closure();
+
+    println!("returned value: {}", returned_value(2));
 }
