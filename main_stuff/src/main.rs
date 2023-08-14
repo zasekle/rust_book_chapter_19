@@ -7,6 +7,7 @@ fn main() {
     advanced_traits();
     advanced_types();
     advanced_functions_and_closures();
+    macros();
 }
 
 fn unsafe_rust() {
@@ -175,7 +176,7 @@ fn advanced_traits() {
     );
 
     //A default type can be set for a parameter.
-    trait Winner<T=u32> {
+    trait Winner<T = u32> {
         type Output;
 
         fn win(self, num: T) -> T;
@@ -193,7 +194,7 @@ fn advanced_traits() {
         }
     }
 
-    let check = Check{};
+    let check = Check {};
 
     println!("win {}", check.win(4));
 
@@ -223,7 +224,7 @@ fn advanced_traits() {
         }
     }
 
-    let human = Human{};
+    let human = Human {};
 
     //The below is fully qualified syntax. By default the Human implementation of pain() is called.
     // However, if other implementations of pain() are needed, they can also be called using the
@@ -243,7 +244,9 @@ fn advanced_traits() {
         }
     }
 
-    struct Box{len: i32}
+    struct Box {
+        len: i32,
+    }
 
     //Display must be implemented in order to implement the trait ShowStuff.
     impl Display for Box {
@@ -254,7 +257,7 @@ fn advanced_traits() {
 
     impl ShowStuff for Box {}
 
-    let my_box = Box{len: 12};
+    let my_box = Box { len: 12 };
 
     my_box.show_stuff();
 
@@ -276,7 +279,6 @@ fn advanced_traits() {
 
     let w = Wrapper(vec![String::from("hello"), String::from("world")]);
     println!("w = {}", w);
-
 }
 
 fn advanced_types() {
@@ -321,16 +323,15 @@ fn advanced_types() {
 }
 
 fn advanced_functions_and_closures() {
-
     //Function pointers can be passed to a function instead of closures as well.
-    fn closure_add<F>(f: &F) where F: Fn(u32)->u32 {
-         println!("add from closure {}", f(2))
+    fn closure_add<F>(f: &F) where F: Fn(u32) -> u32 {
+        println!("add from closure {}", f(2))
     }
 
     //In general this is not a good way to write the function. This is because the closure syntax
     // above can accept function pointers. However, the function pointer syntax cannot accept
     // closures. This is because the fn type implements Fn, FnMut and FnOnce.
-    fn function_ptr_add(f: fn (u32) -> u32) {
+    fn function_ptr_add(f: fn(u32) -> u32) {
         println!("add from function ptr {}", f(3))
     }
 
@@ -362,4 +363,79 @@ fn advanced_functions_and_closures() {
     let returned_value = returns_closure();
 
     println!("returned value: {}", returned_value(2));
+}
+
+fn macros() {
+    //There are two different types of macros.
+    // 1) "declarative macros" which use `macro_rules!`
+    // 2) "procedural macros" which are divided into three types
+    //   - Custom [#derive] macros;
+    //   - Attribute-like macros;
+    //   - Function-like macros;
+
+    //There are some benefits to macros over functions. Macros have a variable number of arguments.
+    // Macros are also expanded before the compiler interprets the code. The trade offs and  that
+    // macros are more complex than functions, and the macros must be defined before they are
+    // called in a file.
+
+    //The below macro is a `declarative macro`. It will replace the code with the code in the macro
+
+    #[macro_export] //This annotation says that this should be brought into scope when the crate is loaded.
+    macro_rules! vec_new { //This is the macro to make a vector followed by the name.
+
+        //Declarative macros are similar to match expressions, this is the single arm of this macro.
+        //The `$` is used to denote the Rust code matching pattern. `$x:expr` matches any Rust
+        // expression and gives the expression the name `$x`. `*` specifies that the pattern
+        // matches 0 or more of whatever precedes it.
+        //So essentially the 'match' here takes all of the expressions at the same time. Then inside
+        // the arm each expression is called individually and pushed into the vector using the
+        // `$()*` syntax.
+        ( $( $x:expr ),* ) => {
+            {
+                let mut temp_vec = Vec::new();
+                $(
+                    temp_vec.push($x);
+                )*
+                temp_vec
+            }
+        };
+    }
+
+    //It should be noted that macros are much more complex that covered here. They seem to
+    // essentially be their own programming language. The things that are worthwhile to keep in mind
+    // are when a macro should be used (the capabilities of macros). Then I can look up the
+    // specifics to build my individual macro. A good source is listed below for macros.
+    // https://veykril.github.io/tlborm/
+
+    println!("vec_new: {:?}", vec_new![1,2,3]);
+
+    //`procedural macros` act like functions. They accept input and produce output instead of
+    // replacing the code. Procedural macros must be generated inside of a specific type of crate
+    // lib.rs inside the `procedural_macros` crate is where this is done.
+
+    //Procedural macros themselves must be declared inside their own crate. That means that if I
+    // want to have a trait (such as HelloMacro below) I must declare the trait itself inside a
+    // separate crate. This leads to three crates inside a workspace.
+    use procedural_trait::HelloMacro;
+    use procedural_macros::HelloMacro;
+
+    //The macro can then be used just like a normal macro.
+    #[derive(HelloMacro)]
+    struct TheNamedStruct;
+
+    //Because the macro is the same for each instance of a class, it works like a static function
+    // call.
+    TheNamedStruct::hello_macro();
+
+    //The second type of macro is attribute-like macros. For example inside `#derive(HelloMacro)`
+    // `derive` is the attribute. attribute-like macros allow for defining custom attributes. These
+    // can be used on other things such as function as well and are not limited to just structs and
+    // enums.
+    //As for implementation of attribute-like macros, they have a similar implementation to the
+    // custom #derive macro (such as HelloMacro above). However, they have more capabilities.
+
+    //The third type of macro is function-like macros. These provide some benefits of declarative-
+    // macros and some benefits of procedural-macros. They can take an unknown number of arguments,
+    // however, they are much more powerful than declarative-macros.
+    //Implementation is again similar to custom #derive macros.
 }

@@ -1,0 +1,12 @@
+[package]
+name = "procedural_macros"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0.28"
+quote = "1"
+procedural_trait = { path = "../procedural_trait" }
